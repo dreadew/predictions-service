@@ -1,5 +1,6 @@
 import json
 import joblib
+import itertools
 import numpy as np
 import tensorflow as tf
 import xml.etree.ElementTree as ET
@@ -9,7 +10,6 @@ from repository import CurrencyRepository
 from os import listdir
 from os.path import isfile, join
 from schemas import CurrencyAdd
-
 
 def read_json_and_transform(filename, currency):
     with open(filename, 'r') as file:
@@ -99,7 +99,8 @@ async def start_prediction(currency: str, days: int, start_date: datetime = date
   
   splitted_currency = currency.split('-')
   inverted_currency = splitted_currency[1] + '-' + splitted_currency[0]
-  filename = f'./utils/datasets/{currency}' if (splitted_currency[0] == 'rub' and splitted_currency[1] in ['cny', 'aed']) or (splitted_currency[0] == 'aed' and splitted_currency[1] == 'cny') else f'./utils/datasets/{inverted_currency}'
+  filename = f'./utils/datasets/{currency}' if (splitted_currency[0] in ['cny', 'aed'] and splitted_currency[1] == 'rub') or (splitted_currency[0] == 'aed' and splitted_currency[1] == 'cny') else f'./utils/datasets/{inverted_currency}'
+  print(filename, splitted_currency)
   if currency == 'aed-cny' or currency == 'cny-aed':
     dates, rates = read_json_and_transform(filename + '.json', currency)
   else:
@@ -114,3 +115,14 @@ async def start_prediction(currency: str, days: int, start_date: datetime = date
      
   future_dates, predicted_rates = await predict(model_name, scaler_dates, scaler_values, dates, start_date, days, currency)
   return future_dates, predicted_rates
+
+async def predict_previous():
+  res = await CurrencyRepository.get_by_date('cny-rub', datetime.strptime('19.01.2023', '%d.%m.%Y'))
+  if (len(res) > 0):
+    return
+  currencies = ['rub', 'aed', 'cny']
+  permutations = list(itertools.permutations(currencies, 2))
+  start_date = datetime.strptime('19.01.2023', '%d.%m.%Y').date()
+  days =  (datetime.now().date() - timedelta(1)) - start_date
+  for p in permutations:
+    await start_prediction('-'.join(p), days.days, start_date)

@@ -27,7 +27,15 @@ class CurrencyRepository:
 	@classmethod
 	async def get_by_params(cls, currency: str, days: int) -> list[CurrencySchema]:
 		async with new_session() as session:
-			query = select(Currency).where(Currency.currency == currency).order_by(Currency.date.asc()).limit(days + 1)
+			query = select(Currency).where(Currency.currency == currency).order_by(Currency.date.desc()).limit(31)
+			result = await session.execute(query)
+			currency_models = result.scalars().all()
+			return currency_models
+		
+	@classmethod
+	async def get_by_date(cls, currency: str, date: datetime.datetime) -> CurrencySchema:
+		async with new_session() as session:
+			query = select(Currency).where(Currency.currency == currency).where(Currency.date == date).order_by(Currency.date.desc()).limit(1)
 			result = await session.execute(query)
 			currency_models = result.scalars().all()
 			return currency_models
